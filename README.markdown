@@ -15,6 +15,10 @@ X = (thick)(*2.0)F
 That is stroke control = `(<name|factor|value>)` where `name` is one of `thin`, `medium`, `thick`,
 `factor` is `*<value>` and `value` is a decimal number.
 
+New operators:
+- `%` random choice between `-` and `+`
+- `^` random choice between `<` and `>`
+
 frac - fractal lines drawer
 ===========================
 

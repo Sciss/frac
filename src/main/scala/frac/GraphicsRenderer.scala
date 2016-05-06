@@ -27,10 +27,11 @@ case class Point(x: Double, y: Double)
 case class RendererStats(turtleMoves: Int, turtleTurns: Int, sequenceLength: Int, duration: Long)
 
 /** Renders the given definition on an AWT graphics */
-class GraphicsRenderer(val g: Graphics2D, val cWidth: Int, val cHeight: Int) extends RunState {
+class GraphicsRenderer(val g: Graphics2D, val cWidth: Int, val cHeight: Int, val MARGIN: Int = 20)
+  extends RunState {
+
   var isRunning = true
 
-  private[this] val MARGIN                = 20
   private[this] var position              = Point(0, 0)
   private[this] var heading               = 0.0
   private[this] var turnAngle             = Pi / 2
@@ -40,6 +41,7 @@ class GraphicsRenderer(val g: Graphics2D, val cWidth: Int, val cHeight: Int) ext
   private[this] var (turtleMovesCounter, turtleTurnsCounter, sequenceCounter) = (0, 0, 0)
   private[this] var strokeColor           = Color.black
   private[this] var stroke                = new BasicStroke(1f): Stroke
+  private[this] val rnd                   = new util.Random()
 
   private case class TurtleState(position: Point, heading: Double, moveLength: Double, strokeColor: Color,
                                  stroke: Stroke)
@@ -48,10 +50,13 @@ class GraphicsRenderer(val g: Graphics2D, val cWidth: Int, val cHeight: Int) ext
     val start = new Date().getTime
     // Dry run to compute size
     init(Point(0, 0) -> 10.0, definition)
+    val seed = System.currentTimeMillis()
+    rnd.setSeed(seed)
     definition.execute(this, depth, callback(draw = false, definition.scaleRatio))
 
     // Center, scale, and draw
     init(computeTransformation, definition)
+    rnd.setSeed(seed)
     definition.execute(this, depth, callback(draw = true, definition.scaleRatio))
 
     RendererStats(turtleMovesCounter, turtleTurnsCounter, sequenceCounter, new Date().getTime - start)
@@ -95,6 +100,12 @@ class GraphicsRenderer(val g: Graphics2D, val cWidth: Int, val cHeight: Int) ext
       case RuleReference('-', repetitionCount) =>
         heading += turnAngle * repetitionCount
         turtleTurnsCounter += repetitionCount
+      case RuleReference('%', repetitionCount) =>
+        val signum = if (rnd.nextBoolean()) 1 else -1
+        for (_ <- 0 until repetitionCount) {
+          heading += turnAngle * signum
+        }
+        turtleTurnsCounter += repetitionCount
       case RuleReference('F', repetitionCount) =>
         move(draw, repetitionCount)
         turtleMovesCounter += repetitionCount
@@ -111,10 +122,21 @@ class GraphicsRenderer(val g: Graphics2D, val cWidth: Int, val cHeight: Int) ext
         strokeColor   = state.strokeColor
         stroke        = state.stroke
         stateStack    = newStack
-      case RuleReference('>', _) =>
-        travelLength *= scaleRatio
-      case RuleReference('<', _) =>
-        travelLength /= scaleRatio
+      case RuleReference('>', repetitionCount) =>
+        for (_ <- 0 until repetitionCount) {
+          travelLength *= scaleRatio
+        }
+      case RuleReference('<', repetitionCount) =>
+        for (_ <- 0 until repetitionCount) {
+          travelLength /= scaleRatio
+        }
+      case RuleReference('^', repetitionCount) =>
+        for (_ <- 0 until repetitionCount) {
+          if (rnd.nextBoolean())
+            travelLength *= scaleRatio
+          else
+            travelLength /= scaleRatio
+        }
       case colorStatement : ColorOperation =>
         strokeColor = colorStatement.changeColor(strokeColor)
         g.setColor(strokeColor)

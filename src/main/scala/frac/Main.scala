@@ -190,7 +190,7 @@ object Main extends SimpleSwingApplication {
   private var renderer = Option.empty[GraphicsRenderer]
   private var rendering = Future.failed[RendererStats](new Exception("Not yet started"))
 
-  private def prepareRenderer(img: BufferedImage): GraphicsRenderer = {
+  private def prepareRenderer(img: BufferedImage, margin: Int = 20): GraphicsRenderer = {
     val g = img.createGraphics()
     g.setBackground(new Color(255, 255, 255, 0))
     val w = img.getWidth
@@ -198,7 +198,7 @@ object Main extends SimpleSwingApplication {
     g.clearRect(0, 0, w, h)
     g.setColor(new Color(100, 100, 100))
     g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-    new GraphicsRenderer(g, w, h)
+    new GraphicsRenderer(g, w, h, MARGIN = margin)
   }
 
   def refresh(): Unit =
@@ -264,15 +264,26 @@ object Main extends SimpleSwingApplication {
 
   def browse(url: String): Unit = browser.foreach(_ (new URI(url)))
 
+  private var lastExportDir = {
+    val pic = userHome / "Pictures"
+    if (pic.isDirectory) pic else userHome
+  }
+
+  private lazy val mExpWidth  = new SpinnerNumberModel(image.getWidth , 1, 32768, 1)
+  private lazy val mExpHeight = new SpinnerNumberModel(image.getHeight, 1, 32768, 1)
+  private lazy val mExpMargin = new SpinnerNumberModel(20, 0, 32768, 1)
+
   def exportImage(): Unit = {
     val title = "Export Image"
     val dlg = new FileDialog(topFrame.peer, title, FileDialog.SAVE)
+    dlg.setDirectory(lastExportDir.path)
     dlg.setVisible(true)
     for {
       name   <- Option(dlg.getFile)
       parent <- Option(dlg.getDirectory)
     } {
       val f0  = new File(parent, name)
+      lastExportDir = f0.parent
       val fmt = f0.ext.toLowerCase match {
         case "jpg" => "jpg"
         case _     => "png"
@@ -288,26 +299,27 @@ object Main extends SimpleSwingApplication {
         res === Dialog.Result.Ok
       }
       if (ok) {
-        val mWidth    = new SpinnerNumberModel(image.getWidth , 1, 32768, 1)
-        val mHeight   = new SpinnerNumberModel(image.getHeight, 1, 32768, 1)
-        val ggWidth   = new Spinner(mWidth)
-        val ggHeight  = new Spinner(mHeight)
+        val ggWidth   = new Spinner(mExpWidth)
+        val ggHeight  = new Spinner(mExpHeight)
+        val ggMargin  = new Spinner(mExpMargin)
         val lbWidth   = new Label("Width:")
         val lbHeight  = new Label("Height:")
+        val lbMargin  = new Label("Margin:")
         val lbInfo    = new Label("Specify image dimensions (px)")
         val pMessage = new GroupPanel {
           horizontal = Par(lbInfo, Seq(
-            Par(lbWidth, lbHeight), Par(ggWidth, ggHeight)
+            Par(lbWidth, lbHeight, lbMargin), Par(ggWidth, ggHeight, ggMargin)
           ))
-          vertical = Seq(lbInfo, Par(lbWidth, ggWidth), Par(lbHeight, ggHeight))
+          vertical = Seq(lbInfo, Par(lbWidth, ggWidth), Par(lbHeight, ggHeight), Par(lbMargin, ggMargin))
         }
         val res = Dialog.showConfirmation(message = pMessage.peer, title = title, optionType = Dialog.Options.OkCancel)
 
         if (res === Dialog.Result.Ok) {
-          val w         = mWidth .getNumber.intValue
-          val h         = mHeight.getNumber.intValue
+          val w         = mExpWidth .getNumber.intValue
+          val h         = mExpHeight.getNumber.intValue
+          val margin    = mExpMargin.getNumber.intValue
           val imgExport = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
-          val r         = prepareRenderer(imgExport)
+          val r         = prepareRenderer(imgExport, margin = margin)
           val df        = definition
           val dp        = depthValue
           import ExecutionContext.Implicits.global
