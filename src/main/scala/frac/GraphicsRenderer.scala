@@ -17,7 +17,7 @@
  */
 package frac
 
-import java.awt.Color
+import java.awt.{BasicStroke, Color, Stroke}
 import java.util.Date
 
 import scala.math._
@@ -39,8 +39,10 @@ class GraphicsRenderer(val g: Graphics2D, val cWidth: Int, val cHeight: Int) ext
   private[this] var stateStack            = List.empty[TurtleState]
   private[this] var (turtleMovesCounter, turtleTurnsCounter, sequenceCounter) = (0, 0, 0)
   private[this] var strokeColor           = Color.black
+  private[this] var stroke                = new BasicStroke(1f): Stroke
 
-  private case class TurtleState(position: Point, heading: Double, moveLength: Double, strokeColor: Color)
+  private case class TurtleState(position: Point, heading: Double, moveLength: Double, strokeColor: Color,
+                                 stroke: Stroke)
 
   def render(definition: FracDef, depth: Int): RendererStats = {
     val start = new Date().getTime
@@ -100,13 +102,14 @@ class GraphicsRenderer(val g: Graphics2D, val cWidth: Int, val cHeight: Int) ext
         move(draw = false, repetitionCount)
         turtleMovesCounter += repetitionCount
       case RuleReference('[', _) =>
-        stateStack ::= TurtleState(position, heading, travelLength, strokeColor)
+        stateStack ::= TurtleState(position, heading, travelLength, strokeColor, stroke)
       case RuleReference(']', _) =>
         val (state :: newStack) = stateStack
         heading       = state.heading
         travelLength  = state.moveLength
         position      = state.position
         strokeColor   = state.strokeColor
+        stroke        = state.stroke
         stateStack    = newStack
       case RuleReference('>', _) =>
         travelLength *= scaleRatio
@@ -115,6 +118,10 @@ class GraphicsRenderer(val g: Graphics2D, val cWidth: Int, val cHeight: Int) ext
       case colorStatement : ColorOperation =>
         strokeColor = colorStatement.changeColor(strokeColor)
         g.setColor(strokeColor)
+      case strokeStatement : StrokeOperation =>
+        stroke = strokeStatement.changeStroke(stroke)
+        // println(s"Stroke now $stroke")
+        g.setStroke(stroke)
       case _ =>
         () // Ignores all other characters
     }

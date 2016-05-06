@@ -62,26 +62,54 @@ class FracDefParser extends Parser {
   def Rule = rule { RuleName ~ optional(WhiteSpaces) ~ "=" ~ optional(WhiteSpaces) ~ Symbols ~ Ignored ~~> frac.Rule }
 
   def Symbols = rule { zeroOrMore(Symbol) }
-  def Symbol  = rule { ColorOperation | RuleReference }
+  def Symbol  = rule { ColorOperation | StrokeOperation | RuleReference }
   def RuleReference: Rule1[Symbol] = rule { optional(RepeatCount) ~ RuleName ~~> (frac.RuleReference(_, _)) }
   def RuleName = rule { noneOf("{ \t\r\n\f") ~:> (c => c) }
+
+  // ---- colors ----
+
   def ColorOperation = rule { "{" ~ ( ConstantColorOperation | PredefinedColorOperation | IncrementColorOperation )  ~ "}" }
 
   def ConstantColorOperation  : Rule1[Symbol] = rule { PositiveInteger ~ "," ~ PositiveInteger ~ "," ~
-                                                       PositiveInteger ~~> (frac.ConstantColorOperation(_, _, _)) }
+    PositiveInteger ~~> (frac.ConstantColorOperation(_, _, _)) }
   def PredefinedColorOperation: Rule1[Symbol] = rule { Letters ~> frac.ConstantColorOperation.apply }
   def IncrementColorOperation : Rule1[Symbol] = rule { Increment ~ "," ~ Increment ~ "," ~ Increment ~~> frac.IncrementColorOperation }
 
+  // ---- strokes ----
+  
+  def StrokeOperation = rule { "(" ~ ( ConstantStrokeOperation | PredefinedStrokeOperation | IncrementStrokeOperation )  ~ ")" }
+
+  def ConstantStrokeOperation  : Rule1[Symbol] = rule { RealNumber ~~> (frac.ConstantStrokeOperation(_)) }
+  def PredefinedStrokeOperation: Rule1[Symbol] = rule { Letters ~> frac.ConstantStrokeOperation.apply }
+  def IncrementStrokeOperation : Rule1[Symbol] = rule { Factor ~~> frac.IncrementStrokeOperation }
+
+  // ----
+  
   def LeftStartingPoint   = rule { "left"   ~ push(StartingPoint.Left  ) }
   def BottomStartingPoint = rule { "bottom" ~ push(StartingPoint.Bottom) }
 
-  def Title           = rule { oneOrMore( noneOf( "\r\n" ) ) ~> (_.toString) }
-  def RealNumber      = rule { oneOrMore(Digit) ~ optional( "." ~ oneOrMore(Digit) ) ~> (_.toDouble) }
-  def PositiveInteger = rule { oneOrMore(Digit) ~> (_.toInt) }
+  def Title           = rule { oneOrMore( noneOf( "\r\n" ) ) ~> identity[String] }
+
+  def RealNumber = rule {
+    Integer ~ optional[Int]("." ~ PositiveInteger) ~~> { (a: Int, bOpt: Option[Int]) =>
+      bOpt.fold(a.toDouble)(b => s"$a.$b".toDouble) // I don't think this is the way to do it...
+    }}
+//  def RealNumber      = rule { Digits ~ optional( "." ~ Digits ) ~> { s =>
+//    println(s"GOT '$s'")
+//    s.toDouble
+//  }}
+  def PositiveInteger = rule { Digits ~> (_.toInt) }
+  def Integer         = rule {
+    optional[Unit]("-" ~> (_ => ())) ~ PositiveInteger ~~> { (neg: Option[Unit], num: Int) =>
+      if (neg.isDefined) -num else num
+    }
+  }
   def Increment       = rule { Sign ~ PositiveInteger ~~> ( (_: Int) * (_: Int) ) }
+  def Factor          = rule { "*" ~ RealNumber }
   def Sign            = rule { ( "+" ~ push(1) ) | ( "-" ~ push(-1) ) }
-  def RepeatCount     = rule { oneOrMore(Digit) ~> ( s => if (s.isEmpty) 1 else s.toInt ) }
+  def RepeatCount     = rule { Digits ~> ( s => if (s.isEmpty) 1 else s.toInt ) }
   def Digit           = rule { "0" - "9" }
+  def Digits          = rule { oneOrMore(Digit) }
   def Letters         = rule { oneOrMore(Letter) }
   def Letter          = rule { "a" - "z" | "A" - "Z" }
   def EOL             = rule { "\r\n" | "\n" | "\n" }
