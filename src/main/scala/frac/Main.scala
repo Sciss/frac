@@ -191,10 +191,10 @@ object Main extends SimpleSwingApplication {
   private var rendering = Future.failed[RendererStats](new Exception("Not yet started"))
 
   private def prepareRenderer(img: BufferedImage): GraphicsRenderer = {
-    val g = image.createGraphics()
+    val g = img.createGraphics()
     g.setBackground(new Color(255, 255, 255, 0))
-    val w = image.getWidth
-    val h = image.getHeight
+    val w = img.getWidth
+    val h = img.getHeight
     g.clearRect(0, 0, w, h)
     g.setColor(new Color(100, 100, 100))
     g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
@@ -220,7 +220,13 @@ object Main extends SimpleSwingApplication {
         val df = definition
         val dp = depthValue
         import ExecutionContext.Implicits.global
-        val res = Future(blocking(r.render(df, dp)))
+        val res = Future {
+          blocking {
+            val res = r.render(df, dp)
+            r.g.dispose()
+            res
+          }
+        }
         rendering = res
         res.foreach { stats =>
           onEDT {
@@ -274,7 +280,8 @@ object Main extends SimpleSwingApplication {
       val f = f0.replaceExt(fmt)
       import de.sciss.equal.Implicits._
 
-      val ok = !f.exists() || {
+      // only confirm if file name changed because native file dialog already asked
+      val ok = f == f0 || !f.exists() || {
         val message = s"<html><body><b>Warning:</b> File already exists:<p>$f<p>Overwrite it?"
         val res = Dialog.showConfirmation(message = message, title = title,
           optionType = Dialog.Options.OkCancel, messageType = Dialog.Message.Warning)
@@ -304,7 +311,12 @@ object Main extends SimpleSwingApplication {
           val df        = definition
           val dp        = depthValue
           import ExecutionContext.Implicits.global
-          val fut       = Future(blocking(r.render(df, dp)))
+          val fut       = Future {
+            blocking {
+              r.render(df, dp)
+              r.g.dispose()
+            }
+          }
           fut.foreach { _ =>
             try {
               ImageIO.write(imgExport, fmt, f)

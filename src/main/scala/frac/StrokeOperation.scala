@@ -35,7 +35,6 @@ case class ConstantStrokeOperation(stroke: Stroke) extends StrokeOperation {
 }
 
 case class IncrementStrokeOperation(factor: Double) extends StrokeOperation {
-  println(this)
   def changeStroke(previousStroke: Stroke): Stroke = {
     val w0 = previousStroke match {
       case b: BasicStroke => b.getLineWidth

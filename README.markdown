@@ -2,6 +2,19 @@ __Note__: This is a fork from https://github.com/jletroui/frac/ .
 All modifications (C)opyright 2016 Hanns Holger Rutz. Released under
 the original license (Apache 2.0).
 
+We add stroke control:
+
+```scala
+title = Koch line
+angle = 60
+seed = X
+F = F+F--F+F(*0.99)
+X = (thick)(*2.0)F
+```
+
+That is stroke control = `(<name|factor|value>)` where `name` is one of `thin`, `medium`, `thick`,
+`factor` is `*<value>` and `value` is a decimal number.
+
 frac - fractal lines drawer
 ===========================
 
