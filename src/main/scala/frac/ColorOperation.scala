@@ -1,3 +1,5 @@
+// modified by Hanns Holger Rutz in May 2016
+
 /*
  * Copyright (C) 2012 Julien Letrouit
  *
@@ -24,13 +26,13 @@ trait ColorOperation extends Symbol {
 }
 
 object ColorHelper {
-  def colorComponent(unclean: Int) = if (unclean < 0) 256 + (unclean % 256) else unclean % 256
+  def colorComponent(unclean: Int): Int = if (unclean < 0) 256 + (unclean % 256) else unclean % 256
 }
 
 object ConstantColorOperation {
   import ColorHelper._
 
-  val predefined = classOf[Color]
+  val predefined: Map[String, Color] = classOf[Color]
     .getFields
     .filter(_.getType == classOf[Color])
     .map(f => f.getName -> f.get(null).asInstanceOf[Color])
@@ -39,16 +41,16 @@ object ConstantColorOperation {
   def apply(r: Int, g: Int, b: Int): ConstantColorOperation = ConstantColorOperation(new Color(colorComponent(r), colorComponent(g), colorComponent(b)))
   def apply(name: String): ConstantColorOperation = ConstantColorOperation(predefined(name))
 
-  def findPredifinedName(c: Color) = predefined
+  def findPredefinedName(c: Color): Option[String] = predefined
     .find(_._2 == c)
     .map(_._1)
 }
 case class ConstantColorOperation(color: Color) extends ColorOperation {
   require(color != null, "color must not be null")
 
-  def changeColor(previousColor: Color) = color
+  def changeColor(previousColor: Color): Color = color
 
-  override lazy val toString = ConstantColorOperation.findPredifinedName(color) match {
+  override lazy val toString = ConstantColorOperation.findPredefinedName(color) match {
     case Some(name) => "{%s}".format(name)
     case _ => "{%d,%d,%d}".format(color.getRed, color.getGreen, color.getBlue)
   }
@@ -57,10 +59,10 @@ case class ConstantColorOperation(color: Color) extends ColorOperation {
 case class IncrementColorOperation(redIncrement: Int, greenIncrement: Int, blueIncrement: Int) extends ColorOperation {
   import ColorHelper._
 
-  def changeColor(previousColor: Color) = new Color(
-    colorComponent(previousColor.getRed + redIncrement),
+  def changeColor(previousColor: Color): Color = new Color(
+    colorComponent(previousColor.getRed   + redIncrement),
     colorComponent(previousColor.getGreen + greenIncrement),
-    colorComponent(previousColor.getBlue + blueIncrement))
+    colorComponent(previousColor.getBlue  + blueIncrement))
 
   override lazy val toString = "{%+d,%+d,%+d}".format(redIncrement, greenIncrement, blueIncrement)
 }

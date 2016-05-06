@@ -1,4 +1,4 @@
-import java.io.{ByteArrayOutputStream, InputStream, Closeable}
+// modified by Hanns Holger Rutz in May 2016
 
 /*
 * Copyright (C) 2012 Julien Letrouit
@@ -16,26 +16,29 @@ import java.io.{ByteArrayOutputStream, InputStream, Closeable}
 * limitations under the License.
 */
 
-package object frac {
-  implicit def toRichInt(enriched: Int) = new RichInt(enriched)
-  implicit def toRichInputStream(enriched: InputStream) = new RichInputStream(enriched)
+import java.io.{ByteArrayOutputStream, Closeable, InputStream}
 
-  def using[A <: Closeable](closeable: A)(block: A => Unit) {
+import scala.language.implicitConversions
+
+package object frac {
+  implicit def toRichInt        (enriched: Int        ): RichInt          = new RichInt(enriched)
+  implicit def toRichInputStream(enriched: InputStream): RichInputStream  = new RichInputStream(enriched)
+
+  def using[A <: Closeable](closeable: A)(block: A => Unit): Unit =
     try {
       block(closeable)
     }
     finally {
       if (closeable != null) closeable.close()
     }
-  }
 }
 
 class RichInt(enriched: Int) {
-  def toRad = math.Pi * 2 * enriched / 360
+  def toRad: Double = math.Pi * 2 * enriched / 360
 }
 
 class RichInputStream(enriched: InputStream) {
-  def toByteArray = {
+  def toByteArray: Array[Byte] = {
     val output = new ByteArrayOutputStream
     val readBuffer = new Array[Byte](16384)
     var read = enriched.read(readBuffer, 0, readBuffer.length)

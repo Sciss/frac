@@ -1,3 +1,5 @@
+// modified by Hanns Holger Rutz in May 2016
+
 /*
  * Copyright (C) 2012 Julien Letrouit
  *
@@ -15,18 +17,15 @@
  */
 package frac
 
-import java.lang.StringBuffer
-
 /** Renders the given definition in a simple string */
 class StringRenderer {
   def render(definition: FractalDefinition, depth: Int): String = {
     val res = new StringBuffer()
 
-    def callback(symbol: Symbol) {
+    def callback(symbol: Symbol): Unit =
       res.append(symbol.toString)
-    }
 
-    definition.execute(depth, callback _)
+    definition.execute(depth, callback)
     res.toString
   }
 }

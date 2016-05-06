@@ -1,3 +1,5 @@
+// modified by Hanns Holger Rutz in May 2016
+
 /*
  * Copyright (C) 2012 Julien Letrouit
  *
@@ -15,15 +17,12 @@
  */
 package frac
 
-import java.io._
-import java.lang.StringBuffer
-import java.nio.file.{Paths, Files}
 import java.nio.charset.Charset
 
 /** Reads the examples in definition.frac file */
-object ExampleRepository
-{
-  private[this] val stream = Thread.currentThread.getContextClassLoader.getResourceAsStream("definitions.frac")
-  private[this] val defintionText = new String(stream.toByteArray, Charset.defaultCharset)
-  val examples = new FractalDefinitionParser().parseFractalDefinitionList(defintionText).result.get
+object ExampleRepository {
+  private[this] val stream          = Thread.currentThread.getContextClassLoader.getResourceAsStream("definitions.frac")
+  private[this] val definitionText  = new String(stream.toByteArray, Charset.defaultCharset)
+
+  val examples = new FractalDefinitionParser().parseFractalDefinitionList(definitionText).result.get
 }

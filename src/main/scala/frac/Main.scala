@@ -1,4 +1,4 @@
-// modified Hanns Holger Rutz in May 2016
+// modified by Hanns Holger Rutz in May 2016
 
 /*
  * Copyright (C) 2012 Julien Letrouit
@@ -202,7 +202,6 @@ object Main extends SimpleSwingApplication {
 
   lazy val desktop = if (Desktop.isDesktopSupported) Some(Desktop.getDesktop) else None
   lazy val browser = if (desktop.isDefined && desktop.get.isSupported(Desktop.Action.BROWSE)) Some(desktop.get.browse _) else None
-  def browse(url: String) {
-    browser.foreach(_(new URI(url)))
-  }
+
+  def browse(url: String): Unit = browser.foreach(_(new URI(url)))
 }

@@ -1,3 +1,5 @@
+// modified by Hanns Holger Rutz in May 2016
+
 /*
  * Copyright (C) 2012 Julien Letrouit
  *
@@ -16,38 +18,41 @@
 
 package frac
 
-import frac._
-import annotation.tailrec
+import scala.annotation.tailrec
 
-case class FractalDefinition(
-                              seed: List[Symbol],
-                              sourceText: String = "",
-                              turnAngle: Double = 90.toRad,
-                              scaleRatio: Double = 0.5,
-                              title: String = "",
-                              startingPoint: StartingPoint.Value = StartingPoint.Left,
-                              rules: List[Rule] = Nil) {
-  private[this] lazy val ruleIndex = rules.map(rule => rule.name -> rule.expression).toMap
+case class FractalDefinition(seed         : List[Symbol],
+                             sourceText   : String              = "",
+                             turnAngle    : Double              = 90.toRad,
+                             scaleRatio   : Double              = 0.5,
+                             title        : String              = "",
+                             startingPoint: StartingPoint.Value = StartingPoint.Left,
+                             rules        : List[Rule]          = Nil
+                            ) {
+
+  private[this] lazy val ruleIndex: Map[Char, List[Symbol]] =
+    rules.map(rule => rule.name -> rule.expression).toMap
 
   @tailrec
-  private[this] def executeRecurse(callback: Symbol => Unit, nextTokens: List[(Int, Symbol)]) { nextTokens match {
-    case Nil => ()
-    case (level, symbol) :: xs =>
-      if (level == 0 || !symbol.isInstanceOf[RuleReference] || ruleFor(symbol).isEmpty) {
-        callback(symbol)
-        executeRecurse(callback, xs)
-      }
-      else {
-        executeRecurse(callback, ruleFor(symbol).map((level - 1, _)) ::: xs)
-      }
-  }}
+  private[this] def executeRecurse(callback: Symbol => Unit, nextTokens: List[(Int, Symbol)]): Unit =
+    nextTokens match {
+      case Nil => ()
+      case (level, symbol) :: xs =>
+        if (level == 0 || !symbol.isInstanceOf[RuleReference] || ruleFor(symbol).isEmpty) {
+          callback(symbol)
+          executeRecurse(callback, xs)
+        }
+        else {
+          executeRecurse(callback, ruleFor(symbol).map((level - 1, _)) ::: xs)
+        }
+    }
 
-  private[this] def ruleFor(symbol: Symbol) = symbol match {
-    case RuleReference(ruleName, _) => ruleIndex.get(ruleName).getOrElse(Nil)
+  private[this] def ruleFor(symbol: Symbol): List[Symbol] = symbol match {
+    case RuleReference(ruleName, _) => ruleIndex.getOrElse(ruleName, Nil)
     case _ => Nil
   }
 
-  def execute(depth: Int, callback: Symbol => Unit) { executeRecurse(callback, seed.map((depth, _))) }
+  def execute(depth: Int, callback: Symbol => Unit): Unit =
+    executeRecurse(callback, seed.map((depth, _)))
 }
 
 object StartingPoint extends Enumeration {
@@ -61,7 +66,6 @@ trait Symbol
 
 object RuleReference {
   def apply(repetition: Option[Int], ruleName: Char): RuleReference = RuleReference(ruleName, repetition.getOrElse(1))
-//  def apply(ruleName: Char): RuleReference = RuleReference(ruleName, 1)
 }
 
 /** A primitive token. Primitives are token that have a rule to be executed */

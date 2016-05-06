@@ -1,3 +1,5 @@
+// modified by Hanns Holger Rutz in May 2016
+
 /*
  * Copyright (C) 2012 Julien Letrouit
  *
@@ -16,24 +18,25 @@
 package frac
 
 import java.awt.{Color, Graphics}
-import collection.immutable.Stack
 import java.util.Date
-import math._
+
+import scala.collection.immutable.Stack
+import scala.math._
 
 case class Point(x: Double, y: Double)
 case class RendererStats(turtleMoves: Int, turtleTurns: Int, sequenceLength: Int, duration: Long)
 
 /** Renders the given definition on an AWT graphics */
 class GraphicsRenderer(g: Graphics) {
-  private[this] val MARGIN = 20
-  private[this] var position = Point(0, 0)
-  private[this] var heading = 0.0
-  private[this] var turnAngle = Pi / 2
-  private[this] var (minPoint, maxPoint) = (Point(0, 0), Point(0, 0))
-  private[this] var travelLength = 10.0
-  private[this] var stateStack = Stack.empty[TurtleState]
+  private[this] val MARGIN                = 20
+  private[this] var position              = Point(0, 0)
+  private[this] var heading               = 0.0
+  private[this] var turnAngle             = Pi / 2
+  private[this] var (minPoint, maxPoint)  = (Point(0, 0), Point(0, 0))
+  private[this] var travelLength          = 10.0
+  private[this] var stateStack            = Stack.empty[TurtleState]
   private[this] var (turtleMovesCounter, turtleTurnsCounter, sequenceCounter) = (0, 0, 0)
-  private[this] var strokeColor = Color.black
+  private[this] var strokeColor           = Color.black
 
   private case class TurtleState(position: Point, heading: Double, moveLength: Double, strokeColor: Color)
 
@@ -41,29 +44,29 @@ class GraphicsRenderer(g: Graphics) {
     val start = new Date().getTime
     // Dry run to compute size
     init(Point(0, 0) -> 10.0, definition)
-    definition.execute(depth, callback(false, definition.scaleRatio))
+    definition.execute(depth, callback(draw = false, definition.scaleRatio))
 
     // Center, scale, and draw
     init(computeTransformation, definition)
-    definition.execute(depth, callback(true, definition.scaleRatio))
+    definition.execute(depth, callback(draw = true, definition.scaleRatio))
 
     RendererStats(turtleMovesCounter, turtleTurnsCounter, sequenceCounter, new Date().getTime - start)
   }
 
-  private def init(transformation: (Point, Double), definition: FractalDefinition) {
-    position = transformation._1
-    heading = definition.startingPoint match {
-      case StartingPoint.Left => 0.0
+  private def init(transformation: (Point, Double), definition: FractalDefinition): Unit = {
+    position            = transformation._1
+    heading             = definition.startingPoint match {
+      case StartingPoint.Left   => 0.0
       case StartingPoint.Bottom => -Pi / 2
     }
-    travelLength = transformation._2
-    this.turnAngle = definition.turnAngle
-    minPoint = Point(0, 0)
-    maxPoint = Point(0, 0)
-    stateStack = Stack.empty[TurtleState]
-    turtleMovesCounter = 0
-    turtleTurnsCounter = 0
-    sequenceCounter = 0
+    travelLength        = transformation._2
+    turnAngle           = definition.turnAngle
+    minPoint            = Point(0, 0)
+    maxPoint            = Point(0, 0)
+    stateStack          = Stack.empty[TurtleState]
+    turtleMovesCounter  = 0
+    turtleTurnsCounter  = 0
+    sequenceCounter     = 0
   }
 
   /** Look what is the scaling and translation that must be applied to fill the drawing space */
@@ -80,7 +83,7 @@ class GraphicsRenderer(g: Graphics) {
 
 
   /** Interpret the given character and update state accordingly */
-  private def callback(draw: Boolean, scaleRatio: Double)(c: Symbol) {
+  private def callback(draw: Boolean, scaleRatio: Double)(c: Symbol): Unit = {
     c match {
       case RuleReference('+', repetitionCount) =>
         heading -= turnAngle * repetitionCount
@@ -92,7 +95,7 @@ class GraphicsRenderer(g: Graphics) {
         move(draw, repetitionCount)
         turtleMovesCounter += repetitionCount
       case RuleReference('f', repetitionCount) =>
-        move(false, repetitionCount)
+        move(draw = false, repetitionCount)
         turtleMovesCounter += repetitionCount
       case RuleReference('[', _) =>
         stateStack = stateStack.push(TurtleState(position, heading, travelLength, strokeColor))
@@ -118,7 +121,7 @@ class GraphicsRenderer(g: Graphics) {
   }
 
   /** Move the turtle, and optionally draws the movement */
-  private def move(draw: Boolean, repetitionCount: Int) {
+  private def move(draw: Boolean, repetitionCount: Int): Unit = {
     val newPoint = Point(
         position.x + travelLength * repetitionCount * cos(heading),
         position.y + travelLength * repetitionCount * sin(heading))
