@@ -17,16 +17,17 @@
  */
 package frac
 
-import java.awt.{Color, Graphics}
+import java.awt.Color
 import java.util.Date
 
 import scala.math._
+import scala.swing.Graphics2D
 
 case class Point(x: Double, y: Double)
 case class RendererStats(turtleMoves: Int, turtleTurns: Int, sequenceLength: Int, duration: Long)
 
 /** Renders the given definition on an AWT graphics */
-class GraphicsRenderer(g: Graphics, val cWidth: Int, val cHeight: Int) extends RunState {
+class GraphicsRenderer(val g: Graphics2D, val cWidth: Int, val cHeight: Int) extends RunState {
   var isRunning = true
 
   private[this] val MARGIN                = 20

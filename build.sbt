@@ -11,9 +11,11 @@ crossPaths    := false
 resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"
 
 libraryDependencies ++= Seq(
-  "org.scala-lang.modules"  %% "scala-swing"      % "1.0.2",
-  "org.parboiled"           %% "parboiled-scala"  % "1.1.7",
-  "org.specs2"              %% "specs2-core"      % "3.0.1" % "test"
+  "de.sciss"        %% "swingplus"        % "0.2.1",
+  "de.sciss"        %% "fileutil"         % "1.1.1",
+  "de.sciss"        %% "equal"            % "0.1.1",
+  "org.parboiled"   %% "parboiled-scala"  % "1.1.7",
+  "org.specs2"      %% "specs2-core"      % "3.0.1" % "test"
 )
 
 mainClass in assembly := Some("frac.Main")

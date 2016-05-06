@@ -1,4 +1,6 @@
-(fork from https://github.com/jletroui/frac/ )
+__Note__: This is a fork from https://github.com/jletroui/frac/ .
+All modifications (C)opyright 2016 Hanns Holger Rutz. Released under
+the original license (Apache 2.0).
 
 frac - fractal lines drawer
 ===========================

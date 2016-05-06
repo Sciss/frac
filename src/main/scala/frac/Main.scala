@@ -20,12 +20,16 @@ package frac
 
 import java.awt.event.KeyEvent
 import java.awt.image.BufferedImage
-import java.awt.{Color, Desktop, Font}
+import java.awt.{Color, Desktop, FileDialog, Font, RenderingHints, Toolkit}
 import java.net.URI
-import javax.swing.KeyStroke
+import javax.imageio.ImageIO
+import javax.swing.{KeyStroke, SpinnerNumberModel}
 
-import scala.concurrent.{Await, ExecutionContext, Future, blocking}
+import de.sciss.file._
+import de.sciss.swingplus.{GroupPanel, Spinner}
+
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future, blocking}
 import scala.swing.BorderPanel.Position._
 import scala.swing.Swing._
 import scala.swing._
@@ -33,59 +37,68 @@ import scala.swing.event._
 import scala.util.control.NonFatal
 
 object Main extends SimpleSwingApplication {
-  val TURTLE_MOVES_STAT_TEMPLATE    = "Turtle moves: %,d"
-  val TURTLE_TURNS_STAT_TEMPLATE    = "Turtle turns: %,d"
+  val TURTLE_MOVES_STAT_TEMPLATE = "Turtle moves: %,d"
+  val TURTLE_TURNS_STAT_TEMPLATE = "Turtle turns: %,d"
   val SEQUENCE_LENGTH_STAT_TEMPLATE = "Sequence length: %,d"
-  val DURATION_STAT_TEMPLATE        = "Drawing duration: %d ms"
-  val CODE_COLOR                    = 80
-  val parser                        = new FracDefParser
-  val definitions: List[FracDef]    = ExampleRepository.examples
-  var definition:       FracDef     = definitions.head
+  val DURATION_STAT_TEMPLATE = "Drawing duration: %d ms"
+  val CODE_COLOR = 80
+  val parser = new FracDefParser
+  val definitions: List[FracDef] = ExampleRepository.examples
+  var definition: FracDef = definitions.head
+
+  private val menuMod = Toolkit.getDefaultToolkit.getMenuShortcutKeyMask
 
   val refreshAction = new Action("Refresh") {
     override def apply(): Unit = refresh()
-    accelerator = Some(KeyStroke.getKeyStroke("F5"))
+
+    accelerator = Some(KeyStroke.getKeyStroke(KeyEvent.VK_R, menuMod))
   }
   val increaseDepthAction = new Action("+") {
     override def apply(): Unit = increaseDepth()
-    accelerator     = Some(KeyStroke.getKeyStroke("F6"))
+
+    accelerator = Some(KeyStroke.getKeyStroke("F6"))
     longDescription = "Increase depth"
   }
   val decreaseDepthAction = new Action("-") {
     override def apply(): Unit = decreaseDepth()
-    accelerator     = Some(KeyStroke.getKeyStroke("F4"))
+
+    accelerator = Some(KeyStroke.getKeyStroke("F4"))
     longDescription = "Decrease depth"
   }
 
-  val turtleMovesStat     = new Label
-  val turtleTurnsStat     = new Label
-  val sequenceLengthStat  = new Label
-  val durationStat        = new Label
+  val turtleMovesStat = new Label
+  val turtleTurnsStat = new Label
+  val sequenceLengthStat = new Label
+  val durationStat = new Label
 
   val menu = new MenuBar {
-    contents += new Menu("Load example") {
+    contents += new Menu("Example") {
       definitions.foreach(ds => contents += new MenuItem(Action(ds.title) {
         selectExample(ds)
       }))
     }
     contents += new Menu("View") {
       contents += new MenuItem(refreshAction)
-      contents += new MenuItem("Decrease depth") {
-        reactions += {
-          case ButtonClicked(_) => decreaseDepth()
-        }
-        peer.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F4, 0))
-      }
-      contents += new MenuItem("Increase depth") {
-        reactions += {
-          case ButtonClicked(_) => increaseDepth()
-        }
-        peer.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0))
-      }
+      contents += new MenuItem(new Action("Decrease depth") {
+        accelerator = Some(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, menuMod))
+        def apply(): Unit = decreaseDepth()
+      })
+      contents += new MenuItem(new Action("Increase depth") {
+        accelerator = Some(KeyStroke.getKeyStroke(KeyEvent.VK_UP, menuMod))
+        def apply(): Unit = increaseDepth()
+      })
+      contents += new MenuItem(new Action("Export Image...") {
+        accelerator = Some(KeyStroke.getKeyStroke(KeyEvent.VK_S, menuMod))
+        def apply(): Unit = exportImage()
+      })
     }
     contents += new Menu("Help") {
-      contents += new MenuItem(Action("User manual") { browse("https://github.com/jletroui/frac/blob/master/README.markdown") })
-      contents += new MenuItem(Action("License"    ) { browse("https://raw.github.com/jletroui/frac/master/LICENSE") })
+      contents += new MenuItem(Action("User manual") {
+        browse("https://github.com/jletroui/frac/blob/master/README.markdown")
+      })
+      contents += new MenuItem(Action("License") {
+        browse("https://raw.github.com/jletroui/frac/master/LICENSE")
+      })
     }
   }
   val editor = new TextArea(definitions.head.sourceText, 5, 20) {
@@ -93,12 +106,14 @@ object Main extends SimpleSwingApplication {
     foreground  = new Color(CODE_COLOR, CODE_COLOR, CODE_COLOR)
     border      = TitledBorder(null, "Editor")
   }
-  val depth = new TextField("1", 3) {
-    maximumSize = preferredSize
-    verifier    = (txt: String) => try { txt.toInt ; true} catch { case NonFatal(t) => false }
-  }
+
+  val mDepth = new SpinnerNumberModel(1, 1, 256, 1)
+
+  val depth = new Spinner(mDepth)
+
   object fractalPanel extends Panel {
-    def width : Int = peer.getWidth
+    def width: Int = peer.getWidth
+
     def height: Int = peer.getHeight
 
     override def paintComponent(g: Graphics2D): Unit = {
@@ -128,26 +143,25 @@ object Main extends SimpleSwingApplication {
     contents += new BoxPanel(Orientation.Horizontal) {
       contents += HGlue
       contents += new Label("Depth: ")
-      contents += new Button(decreaseDepthAction)
       contents += depth
-      contents += new Button(increaseDepthAction)
       contents += HStrut(10)
       contents += new Button(refreshAction)
+      maximumSize = preferredSize
     }
   }
 
   val center = new SplitPane(Orientation.Vertical, fractalPanel, rightSection) {
-    continuousLayout    = true
-    oneTouchExpandable  = true
-    dividerLocation     = 1200
+    continuousLayout = true
+    oneTouchExpandable = true
+    dividerLocation = 1200
   }
 
   lazy val topFrame = new MainFrame {
     title = "Frac 1.0.5"
     contents = new BorderPanel {
-      preferredSize   = (1600,1000)
-      opaque          = true
-      layout(center)  = Center
+      preferredSize = (1600, 1000)
+      opaque = true
+      layout(center) = Center
     }
     menuBar = menu
     centerOnScreen()
@@ -161,28 +175,31 @@ object Main extends SimpleSwingApplication {
 
   def top = topFrame
 
-  def increaseDepth(): Unit = {
-    depth.text = (depth.text.toInt + 1).toString
-    refresh()
-  }
-
-  def decreaseDepth(): Unit = {
-    val before = depth.text.toInt
-    if (before > 0) {
-      depth.text = (before - 1).toString
-      refresh()
-    }
-  }
+  def increaseDepth(): Unit = Option(mDepth.getNextValue    ).foreach(mDepth.setValue)
+  def decreaseDepth(): Unit = Option(mDepth.getPreviousValue).foreach(mDepth.setValue)
 
   def selectExample(example: FracDef): Unit = {
     editor.text = example.sourceText
-    depth.text = "1"
+    mDepth.setValue(1)
     refresh()
   }
 
-  private var image     = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
-  private var renderer  = Option.empty[GraphicsRenderer]
+  def depthValue: Int = mDepth.getNumber.intValue()
+
+  private var image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
+  private var renderer = Option.empty[GraphicsRenderer]
   private var rendering = Future.failed[RendererStats](new Exception("Not yet started"))
+
+  private def prepareRenderer(img: BufferedImage): GraphicsRenderer = {
+    val g = image.createGraphics()
+    g.setBackground(new Color(255, 255, 255, 0))
+    val w = image.getWidth
+    val h = image.getHeight
+    g.clearRect(0, 0, w, h)
+    g.setColor(new Color(100, 100, 100))
+    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+    new GraphicsRenderer(g, w, h)
+  }
 
   def refresh(): Unit =
     try {
@@ -190,32 +207,28 @@ object Main extends SimpleSwingApplication {
 
       if (parsingResult.matched) {
         definition = parsingResult.result.get
-        val w       = fractalPanel.width
-        val h       = fractalPanel.height
+        val w = fractalPanel.width
+        val h = fractalPanel.height
         renderer.foreach(_.isRunning = false) // "abort"
         Await.ready(rendering, 100.milli)
         if (image.getWidth != w || image.getHeight != h) {
           image.flush()
           image = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
         }
-        val g = image.createGraphics()
-        g.setBackground(new Color(255, 255, 255, 0))
-        g.clearRect(0,0, w, h)
-        g.setColor(new Color(100,100,100))
-        val r     = new GraphicsRenderer(g, w, h)
-        renderer  = Some(r)
-        val df    = definition
-        val dp    = depth.text.toInt
+        val r = prepareRenderer(image)
+        renderer = Some(r)
+        val df = definition
+        val dp = depthValue
         import ExecutionContext.Implicits.global
-        val res   = Future(blocking(r.render(df, dp)))
+        val res = Future(blocking(r.render(df, dp)))
         rendering = res
         res.foreach { stats =>
           onEDT {
             if (rendering == res) {
-              turtleMovesStat   .text = TURTLE_MOVES_STAT_TEMPLATE    .format(stats.turtleMoves)
-              turtleTurnsStat   .text = TURTLE_TURNS_STAT_TEMPLATE    .format(stats.turtleTurns)
-              sequenceLengthStat.text = SEQUENCE_LENGTH_STAT_TEMPLATE .format(stats.sequenceLength)
-              durationStat      .text = DURATION_STAT_TEMPLATE        .format(stats.duration)
+              turtleMovesStat.text = TURTLE_MOVES_STAT_TEMPLATE.format(stats.turtleMoves)
+              turtleTurnsStat.text = TURTLE_TURNS_STAT_TEMPLATE.format(stats.turtleTurns)
+              sequenceLengthStat.text = SEQUENCE_LENGTH_STAT_TEMPLATE.format(stats.sequenceLength)
+              durationStat.text = DURATION_STAT_TEMPLATE.format(stats.duration)
               fractalPanel.repaint()
             }
           }
@@ -240,7 +253,71 @@ object Main extends SimpleSwingApplication {
     }
 
   lazy val desktop = if (Desktop.isDesktopSupported) Some(Desktop.getDesktop) else None
-  lazy val browser = if (desktop.isDefined && desktop.get.isSupported(Desktop.Action.BROWSE)) Some(desktop.get.browse _) else None
+  lazy val browser = if (desktop.isDefined && desktop.get.isSupported(Desktop.Action.BROWSE))
+    Some(desktop.get.browse _) else None
 
-  def browse(url: String): Unit = browser.foreach(_(new URI(url)))
+  def browse(url: String): Unit = browser.foreach(_ (new URI(url)))
+
+  def exportImage(): Unit = {
+    val title = "Export Image"
+    val dlg = new FileDialog(topFrame.peer, title, FileDialog.SAVE)
+    dlg.setVisible(true)
+    for {
+      name   <- Option(dlg.getFile)
+      parent <- Option(dlg.getDirectory)
+    } {
+      val f0  = new File(parent, name)
+      val fmt = f0.ext.toLowerCase match {
+        case "jpg" => "jpg"
+        case _     => "png"
+      }
+      val f = f0.replaceExt(fmt)
+      import de.sciss.equal.Implicits._
+
+      val ok = !f.exists() || {
+        val message = s"<html><body><b>Warning:</b> File already exists:<p>$f<p>Overwrite it?"
+        val res = Dialog.showConfirmation(message = message, title = title,
+          optionType = Dialog.Options.OkCancel, messageType = Dialog.Message.Warning)
+        res === Dialog.Result.Ok
+      }
+      if (ok) {
+        val mWidth    = new SpinnerNumberModel(image.getWidth , 1, 32768, 1)
+        val mHeight   = new SpinnerNumberModel(image.getHeight, 1, 32768, 1)
+        val ggWidth   = new Spinner(mWidth)
+        val ggHeight  = new Spinner(mHeight)
+        val lbWidth   = new Label("Width:")
+        val lbHeight  = new Label("Height:")
+        val lbInfo    = new Label("Specify image dimensions (px)")
+        val pMessage = new GroupPanel {
+          horizontal = Par(lbInfo, Seq(
+            Par(lbWidth, lbHeight), Par(ggWidth, ggHeight)
+          ))
+          vertical = Seq(lbInfo, Par(lbWidth, ggWidth), Par(lbHeight, ggHeight))
+        }
+        val res = Dialog.showConfirmation(message = pMessage.peer, title = title, optionType = Dialog.Options.OkCancel)
+
+        if (res === Dialog.Result.Ok) {
+          val w         = mWidth .getNumber.intValue
+          val h         = mHeight.getNumber.intValue
+          val imgExport = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
+          val r         = prepareRenderer(imgExport)
+          val df        = definition
+          val dp        = depthValue
+          import ExecutionContext.Implicits.global
+          val fut       = Future(blocking(r.render(df, dp)))
+          fut.foreach { _ =>
+            try {
+              ImageIO.write(imgExport, fmt, f)
+            } catch {
+              case NonFatal(t) =>
+                onEDT {
+                  Dialog.showMessage(message = t.getMessage, title = t.getClass.getSimpleName,
+                    messageType = Dialog.Message.Error)
+                }
+            }
+          }
+        }
+      }
+    }
+  }
 }
