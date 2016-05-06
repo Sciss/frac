@@ -26,7 +26,9 @@ case class Point(x: Double, y: Double)
 case class RendererStats(turtleMoves: Int, turtleTurns: Int, sequenceLength: Int, duration: Long)
 
 /** Renders the given definition on an AWT graphics */
-class GraphicsRenderer(g: Graphics, cWidth: Int, cHeight: Int) {
+class GraphicsRenderer(g: Graphics, val cWidth: Int, val cHeight: Int) extends RunState {
+  var isRunning = true
+
   private[this] val MARGIN                = 20
   private[this] var position              = Point(0, 0)
   private[this] var heading               = 0.0
@@ -39,15 +41,15 @@ class GraphicsRenderer(g: Graphics, cWidth: Int, cHeight: Int) {
 
   private case class TurtleState(position: Point, heading: Double, moveLength: Double, strokeColor: Color)
 
-  def render(definition: FracDef, depth: Int) : RendererStats = {
+  def render(definition: FracDef, depth: Int): RendererStats = {
     val start = new Date().getTime
     // Dry run to compute size
     init(Point(0, 0) -> 10.0, definition)
-    definition.execute(depth, callback(draw = false, definition.scaleRatio))
+    definition.execute(this, depth, callback(draw = false, definition.scaleRatio))
 
     // Center, scale, and draw
     init(computeTransformation, definition)
-    definition.execute(depth, callback(draw = true, definition.scaleRatio))
+    definition.execute(this, depth, callback(draw = true, definition.scaleRatio))
 
     RendererStats(turtleMovesCounter, turtleTurnsCounter, sequenceCounter, new Date().getTime - start)
   }

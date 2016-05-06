@@ -33,16 +33,16 @@ case class FracDef(seed         : List[Symbol],
     rules.map(rule => rule.name -> rule.expression).toMap
 
   @tailrec
-  private[this] def executeRecurse(callback: Symbol => Unit, nextTokens: List[(Int, Symbol)]): Unit =
-    nextTokens match {
+  private[this] def executeRecurse(run: RunState, callback: Symbol => Unit, nextTokens: List[(Int, Symbol)]): Unit =
+    if (run.isRunning) nextTokens match {
       case Nil => ()
       case (level, symbol) :: xs =>
         if (level == 0 || !symbol.isInstanceOf[RuleReference] || ruleFor(symbol).isEmpty) {
           callback(symbol)
-          executeRecurse(callback, xs)
+          executeRecurse(run, callback, xs)
         }
         else {
-          executeRecurse(callback, ruleFor(symbol).map((level - 1, _)) ::: xs)
+          executeRecurse(run, callback, ruleFor(symbol).map((level - 1, _)) ::: xs)
         }
     }
 
@@ -51,8 +51,8 @@ case class FracDef(seed         : List[Symbol],
     case _ => Nil
   }
 
-  def execute(depth: Int, callback: Symbol => Unit): Unit =
-    executeRecurse(callback, seed.map((depth, _)))
+  def execute(run: RunState, depth: Int, callback: Symbol => Unit): Unit =
+    executeRecurse(run, callback, seed.map((depth, _)))
 }
 
 object StartingPoint extends Enumeration {

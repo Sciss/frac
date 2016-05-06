@@ -19,7 +19,7 @@ import org.specs2.mutable._
 
 class StringRendererSpec extends Specification {
   val definition = new FracDef(Nil, "") {
-    override def execute(depth: Int, callback: Symbol => Unit): Unit =
+    override def execute(run: RunState, depth: Int, callback: Symbol => Unit): Unit =
       Range(0, depth).foreach(i => callback(RuleReference((48 + i).toChar)))
   }
   val sut = new StringRenderer

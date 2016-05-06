@@ -18,14 +18,16 @@
 package frac
 
 /** Renders the given definition in a simple string */
-class StringRenderer {
+class StringRenderer extends RunState {
+  def isRunning: Boolean = true
+
   def render(definition: FracDef, depth: Int): String = {
     val res = new StringBuffer()
 
     def callback(symbol: Symbol): Unit =
       res.append(symbol.toString)
 
-    definition.execute(depth, callback)
+    definition.execute(this, depth, callback)
     res.toString
   }
 }

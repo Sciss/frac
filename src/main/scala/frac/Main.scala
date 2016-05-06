@@ -19,10 +19,13 @@
 package frac
 
 import java.awt.event.KeyEvent
+import java.awt.image.BufferedImage
 import java.awt.{Color, Desktop, Font}
 import java.net.URI
 import javax.swing.KeyStroke
 
+import scala.concurrent.{Await, ExecutionContext, Future, blocking}
+import scala.concurrent.duration._
 import scala.swing.BorderPanel.Position._
 import scala.swing.Swing._
 import scala.swing._
@@ -94,21 +97,23 @@ object Main extends SimpleSwingApplication {
     maximumSize = preferredSize
     verifier    = (txt: String) => try { txt.toInt ; true} catch { case NonFatal(t) => false }
   }
-  val fractalPanel = new Panel {
+  object fractalPanel extends Panel {
+    def width : Int = peer.getWidth
+    def height: Int = peer.getHeight
+
     override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
-      g.setColor(new Color(100,100,100))
-      val r     = new GraphicsRenderer(g, peer.getWidth, peer.getHeight)
-      val stats = r.render(definition, depth.text.toInt)
-      turtleMovesStat   .text = TURTLE_MOVES_STAT_TEMPLATE    .format(stats.turtleMoves)
-      turtleTurnsStat   .text = TURTLE_TURNS_STAT_TEMPLATE    .format(stats.turtleTurns)
-      sequenceLengthStat.text = SEQUENCE_LENGTH_STAT_TEMPLATE .format(stats.sequenceLength)
-      durationStat      .text = DURATION_STAT_TEMPLATE        .format(stats.duration)
+      val w = width
+      val h = height
+      if (image.getWidth == w && image.getHeight == h)
+        g.drawImage(image, 0, 0, peer)
+      else
+        refresh()
     }
   }
 
   val rightSection = new BoxPanel(Orientation.Vertical) {
-    contents += editor
+    contents += new ScrollPane(editor)
     contents += new BoxPanel(Orientation.Horizontal) {
       contents += new BoxPanel(Orientation.Vertical) {
         contents += turtleMovesStat
@@ -175,13 +180,46 @@ object Main extends SimpleSwingApplication {
     refresh()
   }
 
+  private var image     = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
+  private var renderer  = Option.empty[GraphicsRenderer]
+  private var rendering = Future.failed[RendererStats](new Exception("Not yet started"))
+
   def refresh(): Unit =
     try {
       val parsingResult = parser.parseFracDef(editor.text)
 
       if (parsingResult.matched) {
         definition = parsingResult.result.get
-        fractalPanel.repaint()
+        val w       = fractalPanel.width
+        val h       = fractalPanel.height
+        renderer.foreach(_.isRunning = false) // "abort"
+        Await.ready(rendering, 100.milli)
+        if (image.getWidth != w || image.getHeight != h) {
+          image.flush()
+          image = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
+        }
+        val g = image.createGraphics()
+        g.setBackground(new Color(255, 255, 255, 0))
+        g.clearRect(0,0, w, h)
+        g.setColor(new Color(100,100,100))
+        val r     = new GraphicsRenderer(g, w, h)
+        renderer  = Some(r)
+        val df    = definition
+        val dp    = depth.text.toInt
+        import ExecutionContext.Implicits.global
+        val res   = Future(blocking(r.render(df, dp)))
+        rendering = res
+        res.foreach { stats =>
+          onEDT {
+            if (rendering == res) {
+              turtleMovesStat   .text = TURTLE_MOVES_STAT_TEMPLATE    .format(stats.turtleMoves)
+              turtleTurnsStat   .text = TURTLE_TURNS_STAT_TEMPLATE    .format(stats.turtleTurns)
+              sequenceLengthStat.text = SEQUENCE_LENGTH_STAT_TEMPLATE .format(stats.sequenceLength)
+              durationStat      .text = DURATION_STAT_TEMPLATE        .format(stats.duration)
+              fractalPanel.repaint()
+            }
+          }
+        }
       }
       else {
         val error = parsingResult.parseErrors.head
