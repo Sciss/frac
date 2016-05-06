@@ -1,3 +1,5 @@
+// modified Hanns Holger Rutz in May 2016
+
 /*
  * Copyright (C) 2012 Julien Letrouit
  *
@@ -13,46 +15,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package frac
 
-import swing._
-import event._
-import Swing._
-import BorderPanel.Position._
-import java.awt.{Desktop, Font, Color}
+import java.awt.event.KeyEvent
+import java.awt.{Color, Desktop, Font}
 import java.net.URI
 import javax.swing.KeyStroke
-import java.awt.event.KeyEvent
+
+import scala.swing.BorderPanel.Position._
+import scala.swing.Swing._
+import scala.swing._
+import scala.swing.event._
+import scala.util.control.NonFatal
 
 object Main extends SimpleSwingApplication {
-  val TURTLE_MOVES_STAT_TEMPLATE = "Turtle moves: %,d"
-  val TURTLE_TURNS_STAT_TEMPLATE = "Turtle turns: %,d"
+  val TURTLE_MOVES_STAT_TEMPLATE    = "Turtle moves: %,d"
+  val TURTLE_TURNS_STAT_TEMPLATE    = "Turtle turns: %,d"
   val SEQUENCE_LENGTH_STAT_TEMPLATE = "Sequence length: %,d"
-  val DURATION_STAT_TEMPLATE = "Drawing duration: %d ms"
-  val CODE_COLOR = 80
-  val parser = new FractalDefinitionParser
-  val definitions = ExampleRepository.examples
-  var definition = definitions(0)
+  val DURATION_STAT_TEMPLATE        = "Drawing duration: %d ms"
+  val CODE_COLOR                    = 80
+  val parser                        = new FractalDefinitionParser
+  val definitions                   = ExampleRepository.examples
+  var definition                    = definitions.head
 
   val refreshAction = new Action("Refresh") {
-    override def apply() { refresh() }
+    override def apply(): Unit = refresh()
     accelerator = Some(KeyStroke.getKeyStroke("F5"))
   }
   val increaseDepthAction = new Action("+") {
-    override def apply() { increaseDepth() }
+    override def apply(): Unit = increaseDepth()
     accelerator = Some(KeyStroke.getKeyStroke("F6"))
     longDescription = "Increase depth"
   }
   val decreaseDepthAction = new Action("-") {
-    override def apply() { decreaseDepth() }
+    override def apply(): Unit = decreaseDepth()
     accelerator = Some(KeyStroke.getKeyStroke("F4"))
     longDescription = "Decrease depth"
   }
 
-  val turtleMovesStat = new Label
-  val turtleTurnsStat = new Label
-  val squenceLengthStat = new Label
-  val durationStat = new Label
+  val turtleMovesStat     = new Label
+  val turtleTurnsStat     = new Label
+  val sequenceLengthStat  = new Label
+  val durationStat        = new Label
+
   val menu = new MenuBar {
     contents += new Menu("Load example") {
       definitions.foreach(ds => contents += new MenuItem(Action(ds.title) {
@@ -80,23 +86,23 @@ object Main extends SimpleSwingApplication {
     }
   }
   val editor = new TextArea(definitions.head.sourceText, 5, 20) {
-    font = new Font("Monospaced", Font.BOLD, 16)
-    foreground = new Color(CODE_COLOR, CODE_COLOR, CODE_COLOR)
-    border = TitledBorder(null, "Editor")
+    font        = new Font("Monospaced", Font.BOLD, 16)
+    foreground  = new Color(CODE_COLOR, CODE_COLOR, CODE_COLOR)
+    border      = TitledBorder(null, "Editor")
   }
   val depth = new TextField("1", 3) {
     maximumSize = preferredSize
-    verifier = (txt: String) => try { txt.toInt ; true} catch { case t: Throwable => false }
+    verifier    = (txt: String) => try { txt.toInt ; true} catch { case t: Throwable => false }
   }
   val fractalPanel = new Panel {
-    override def paintComponent(g: Graphics2D) {
+    override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
       g.setColor(new Color(100,100,100))
       val stats = new GraphicsRenderer(g).render(definition, depth.text.toInt)
-      turtleMovesStat.text = TURTLE_MOVES_STAT_TEMPLATE.format(stats.turtleMoves)
-      turtleTurnsStat.text = TURTLE_TURNS_STAT_TEMPLATE.format(stats.turtleTurns)
-      squenceLengthStat.text = SEQUENCE_LENGTH_STAT_TEMPLATE.format(stats.sequenceLength)
-      durationStat.text = DURATION_STAT_TEMPLATE.format(stats.duration)
+      turtleMovesStat   .text = TURTLE_MOVES_STAT_TEMPLATE    .format(stats.turtleMoves)
+      turtleTurnsStat   .text = TURTLE_TURNS_STAT_TEMPLATE    .format(stats.turtleTurns)
+      sequenceLengthStat.text = SEQUENCE_LENGTH_STAT_TEMPLATE .format(stats.sequenceLength)
+      durationStat      .text = DURATION_STAT_TEMPLATE        .format(stats.duration)
     }
   }
 
@@ -106,7 +112,7 @@ object Main extends SimpleSwingApplication {
       contents += new BoxPanel(Orientation.Vertical) {
         contents += turtleMovesStat
         contents += turtleTurnsStat
-        contents += squenceLengthStat
+        contents += sequenceLengthStat
         contents += durationStat
       }
       contents += HGlue
@@ -125,9 +131,9 @@ object Main extends SimpleSwingApplication {
   }
 
   val center = new SplitPane(Orientation.Vertical, fractalPanel, rightSection) {
-    continuousLayout = true
-    oneTouchExpandable = true
-    dividerLocation = 1200
+    continuousLayout    = true
+    oneTouchExpandable  = true
+    dividerLocation     = 1200
   }
 
   lazy val topFrame = new MainFrame {
@@ -149,23 +155,26 @@ object Main extends SimpleSwingApplication {
 
   def top = topFrame
 
-  def increaseDepth() {
+  def increaseDepth(): Unit = {
     depth.text = (depth.text.toInt + 1).toString
     refresh()
   }
 
-  def decreaseDepth() {
-    depth.text = (depth.text.toInt - 1).toString
-    refresh()
+  def decreaseDepth(): Unit = {
+    val before = depth.text.toInt
+    if (before > 0) {
+      depth.text = (before - 1).toString
+      refresh()
+    }
   }
 
-  def selectExample(example: FractalDefinition) {
+  def selectExample(example: FractalDefinition): Unit = {
     editor.text = example.sourceText
     depth.text = "1"
     refresh()
   }
 
-  def refresh() {
+  def refresh(): Unit =
     try {
       val parsingResult = parser.parseFractalDefinition(editor.text)
 
@@ -187,10 +196,9 @@ object Main extends SimpleSwingApplication {
       }
     }
     catch {
-      case t: Throwable =>
+      case NonFatal(t) =>
         Dialog.showMessage(message = t.getMessage, title = "Syntax error", messageType = Dialog.Message.Error)
     }
-  }
 
   lazy val desktop = if (Desktop.isDesktopSupported) Some(Desktop.getDesktop) else None
   lazy val browser = if (desktop.isDefined && desktop.get.isSupported(Desktop.Action.BROWSE)) Some(desktop.get.browse _) else None
