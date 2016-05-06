@@ -19,7 +19,7 @@ package frac
 
 /** Renders the given definition in a simple string */
 class StringRenderer {
-  def render(definition: FractalDefinition, depth: Int): String = {
+  def render(definition: FracDef, depth: Int): String = {
     val res = new StringBuffer()
 
     def callback(symbol: Symbol): Unit =

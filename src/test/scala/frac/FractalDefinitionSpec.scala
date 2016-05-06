@@ -22,14 +22,14 @@ class FractalDefinitionSpec extends Specification {
 
   "a rules and seed definition" should {
     "output seed when given no rules" in {
-      val sut = FractalDefinition(
+      val sut = FracDef(
         List(RuleReference('A'), RuleReference('B'), RuleReference('C'))
       )
 
       renderer.render(sut, 2) must beEqualTo("ABC")
     }
     "apply rules" in {
-      val sut = FractalDefinition(
+      val sut = FracDef(
         List(RuleReference('A'), RuleReference('B')),
         rules = List(
           Rule('A', List(RuleReference('C'))),
@@ -40,7 +40,7 @@ class FractalDefinitionSpec extends Specification {
       renderer.render(sut, 2) must beEqualTo("CD")
     }
     "recurse once when depth is one" in {
-      val sut = FractalDefinition(
+      val sut = FracDef(
         List(RuleReference('A'), RuleReference('B')),
         rules = List(
           Rule('A', List(RuleReference('A'), RuleReference('A')))
@@ -50,7 +50,7 @@ class FractalDefinitionSpec extends Specification {
       renderer.render(sut, 1) must beEqualTo("AAB")
     }
     "don't recurse when depth 0" in {
-      val sut = FractalDefinition(
+      val sut = FracDef(
         List(RuleReference('A'), RuleReference('B')),
         rules = List(
           Rule('A', List(RuleReference('A'), RuleReference('A')))
@@ -60,7 +60,7 @@ class FractalDefinitionSpec extends Specification {
       renderer.render(sut, 0) must beEqualTo("AB")
     }
     "recurse 'depth' time" in {
-      val sut = FractalDefinition(
+      val sut = FracDef(
         List(RuleReference('A'), RuleReference('B')),
         rules = List(
           Rule('A', List(RuleReference('A'), RuleReference('A')))

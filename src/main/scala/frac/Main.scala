@@ -35,9 +35,9 @@ object Main extends SimpleSwingApplication {
   val SEQUENCE_LENGTH_STAT_TEMPLATE = "Sequence length: %,d"
   val DURATION_STAT_TEMPLATE        = "Drawing duration: %d ms"
   val CODE_COLOR                    = 80
-  val parser                        = new FractalDefinitionParser
-  val definitions                   = ExampleRepository.examples
-  var definition                    = definitions.head
+  val parser                        = new FracDefParser
+  val definitions: List[FracDef]    = ExampleRepository.examples
+  var definition:       FracDef     = definitions.head
 
   val refreshAction = new Action("Refresh") {
     override def apply(): Unit = refresh()
@@ -45,12 +45,12 @@ object Main extends SimpleSwingApplication {
   }
   val increaseDepthAction = new Action("+") {
     override def apply(): Unit = increaseDepth()
-    accelerator = Some(KeyStroke.getKeyStroke("F6"))
+    accelerator     = Some(KeyStroke.getKeyStroke("F6"))
     longDescription = "Increase depth"
   }
   val decreaseDepthAction = new Action("-") {
     override def apply(): Unit = decreaseDepth()
-    accelerator = Some(KeyStroke.getKeyStroke("F4"))
+    accelerator     = Some(KeyStroke.getKeyStroke("F4"))
     longDescription = "Decrease depth"
   }
 
@@ -82,7 +82,7 @@ object Main extends SimpleSwingApplication {
     }
     contents += new Menu("Help") {
       contents += new MenuItem(Action("User manual") { browse("https://github.com/jletroui/frac/blob/master/README.markdown") })
-      contents += new MenuItem(Action("License") { browse("https://raw.github.com/jletroui/frac/master/LICENSE") })
+      contents += new MenuItem(Action("License"    ) { browse("https://raw.github.com/jletroui/frac/master/LICENSE") })
     }
   }
   val editor = new TextArea(definitions.head.sourceText, 5, 20) {
@@ -92,13 +92,14 @@ object Main extends SimpleSwingApplication {
   }
   val depth = new TextField("1", 3) {
     maximumSize = preferredSize
-    verifier    = (txt: String) => try { txt.toInt ; true} catch { case t: Throwable => false }
+    verifier    = (txt: String) => try { txt.toInt ; true} catch { case NonFatal(t) => false }
   }
   val fractalPanel = new Panel {
     override def paintComponent(g: Graphics2D): Unit = {
       super.paintComponent(g)
       g.setColor(new Color(100,100,100))
-      val stats = new GraphicsRenderer(g).render(definition, depth.text.toInt)
+      val r     = new GraphicsRenderer(g, peer.getWidth, peer.getHeight)
+      val stats = r.render(definition, depth.text.toInt)
       turtleMovesStat   .text = TURTLE_MOVES_STAT_TEMPLATE    .format(stats.turtleMoves)
       turtleTurnsStat   .text = TURTLE_TURNS_STAT_TEMPLATE    .format(stats.turtleTurns)
       sequenceLengthStat.text = SEQUENCE_LENGTH_STAT_TEMPLATE .format(stats.sequenceLength)
@@ -139,9 +140,9 @@ object Main extends SimpleSwingApplication {
   lazy val topFrame = new MainFrame {
     title = "Frac 1.0.5"
     contents = new BorderPanel {
-      preferredSize = (1600,1000)
-      opaque = true
-      layout(center) = Center
+      preferredSize   = (1600,1000)
+      opaque          = true
+      layout(center)  = Center
     }
     menuBar = menu
     centerOnScreen()
@@ -168,7 +169,7 @@ object Main extends SimpleSwingApplication {
     }
   }
 
-  def selectExample(example: FractalDefinition): Unit = {
+  def selectExample(example: FracDef): Unit = {
     editor.text = example.sourceText
     depth.text = "1"
     refresh()
@@ -176,7 +177,7 @@ object Main extends SimpleSwingApplication {
 
   def refresh(): Unit =
     try {
-      val parsingResult = parser.parseFractalDefinition(editor.text)
+      val parsingResult = parser.parseFracDef(editor.text)
 
       if (parsingResult.matched) {
         definition = parsingResult.result.get

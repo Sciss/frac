@@ -20,14 +20,14 @@ package frac
 
 import scala.annotation.tailrec
 
-case class FractalDefinition(seed         : List[Symbol],
-                             sourceText   : String              = "",
-                             turnAngle    : Double              = 90.toRad,
-                             scaleRatio   : Double              = 0.5,
-                             title        : String              = "",
-                             startingPoint: StartingPoint.Value = StartingPoint.Left,
-                             rules        : List[Rule]          = Nil
-                            ) {
+case class FracDef(seed         : List[Symbol],
+                   sourceText   : String              = "",
+                   turnAngle    : Double              = 90.toRad,
+                   scaleRatio   : Double              = 0.5,
+                   title        : String              = "",
+                   startingPoint: StartingPoint.Value = StartingPoint.Left,
+                   rules        : List[Rule]          = Nil
+                  ) {
 
   private[this] lazy val ruleIndex: Map[Char, List[Symbol]] =
     rules.map(rule => rule.name -> rule.expression).toMap

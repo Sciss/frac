@@ -20,21 +20,21 @@ package frac
 import org.parboiled.Context
 import org.parboiled.scala._
 
-class FractalDefinitionParser extends Parser {
+class FracDefParser extends Parser {
   /** Small methods that can be passed around and that can build part of a definition */
-  private[this] type DefTrans = FractalDefinition => FractalDefinition
-  private[this] def setAngle(angle: Int   )(fd: FractalDefinition) = fd.copy(turnAngle  = angle.toRad)
-  private[this] def setRatio(ratio: Double)(fd: FractalDefinition) = fd.copy(scaleRatio = ratio)
-  private[this] def setTitle(title: String)(fd: FractalDefinition) = fd.copy(title      = title)
-  private[this] def setStart(startingPoint: StartingPoint.Value)(fd: FractalDefinition) = fd.copy(startingPoint = startingPoint)
+  private[this] type DefTrans = FracDef => FracDef
+  private[this] def setAngle(angle: Int   )(fd: FracDef) = fd.copy(turnAngle  = angle.toRad)
+  private[this] def setRatio(ratio: Double)(fd: FracDef) = fd.copy(scaleRatio = ratio)
+  private[this] def setTitle(title: String)(fd: FracDef) = fd.copy(title      = title)
+  private[this] def setStart(startingPoint: StartingPoint.Value)(fd: FracDef) = fd.copy(startingPoint = startingPoint)
 
   /** Builds the fractal definition out of the given parsed elements */
   private[this] def buildDefinition(transformers: List[DefTrans],
                               seed: List[Symbol],
                               rules: List[frac.Rule],
-                              context: Context[_]): FractalDefinition = {
+                              context: Context[_]): FracDef = {
     val source = context.getInputBuffer.extract(context.getMatchRange)
-    var definition = frac.FractalDefinition(seed, source, rules = rules)
+    var definition = frac.FracDef(seed, source, rules = rules)
     // Apply transformers
     transformers.foreach(transform => definition = transform(definition))
     definition
@@ -43,11 +43,11 @@ class FractalDefinitionParser extends Parser {
   private[this] val build =
     withContext(buildDefinition(_: List[DefTrans], _: List[Symbol], _: List[frac.Rule], _: Context[_]))
 
-  def FractalDefinitionList   = rule { zeroOrMore( FractalDefinition ) }
-  def SingleFractalDefinition = rule { FractalDefinition ~ EOI }
-  def FractalDefinition       = rule { FractalDefinitionRule ~~> build }
-  def FractalDefinitionRule   = rule { zeroOrMore(ConstantAssignment) ~ SeedAssignment ~ zeroOrMore(Rule) }
-  def ConstantAssignment      = rule { TitleAssignment | AngleAssignment | RatioAssignment | StartAssignment }
+  def FracDefList         = rule { zeroOrMore( FracDef ) }
+  def SingleFracDef       = rule { FracDef ~ EOI }
+  def FracDef             = rule { FracDefRule ~~> build }
+  def FracDefRule         = rule { zeroOrMore(ConstantAssignment) ~ SeedAssignment ~ zeroOrMore(Rule) }
+  def ConstantAssignment  = rule { TitleAssignment | AngleAssignment | RatioAssignment | StartAssignment }
 
   def TitleAssignment: Rule1[DefTrans] = rule { "title" ~ optional(WhiteSpaces) ~ "=" ~
                                                           optional(WhiteSpaces) ~ Title ~ Ignored ~~> setTitle _ }
@@ -89,6 +89,6 @@ class FractalDefinitionParser extends Parser {
   def BlankLine       = rule { optional(WhiteSpaces) ~ EOL }
   def Ignored         = rule { zeroOrMore(BlankLine) }
 
-  def parseFractalDefinition    (input: String) = ReportingParseRunner(SingleFractalDefinition).run(input)
-  def parseFractalDefinitionList(input: String) = ReportingParseRunner(FractalDefinitionList  ).run(input)
+  def parseFracDef    (input: String): ParsingResult[FracDef]       = ReportingParseRunner(SingleFracDef).run(input)
+  def parseFracDefList(input: String): ParsingResult[List[FracDef]] = ReportingParseRunner(FracDefList  ).run(input)
 }

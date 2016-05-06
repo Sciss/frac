@@ -24,5 +24,5 @@ object ExampleRepository {
   private[this] val stream          = Thread.currentThread.getContextClassLoader.getResourceAsStream("definitions.frac")
   private[this] val definitionText  = new String(stream.toByteArray, Charset.defaultCharset)
 
-  val examples = new FractalDefinitionParser().parseFractalDefinitionList(definitionText).result.get
+  val examples: List[FracDef] = new FracDefParser().parseFracDefList(definitionText).result.get
 }

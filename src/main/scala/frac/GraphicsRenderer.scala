@@ -20,27 +20,26 @@ package frac
 import java.awt.{Color, Graphics}
 import java.util.Date
 
-import scala.collection.immutable.Stack
 import scala.math._
 
 case class Point(x: Double, y: Double)
 case class RendererStats(turtleMoves: Int, turtleTurns: Int, sequenceLength: Int, duration: Long)
 
 /** Renders the given definition on an AWT graphics */
-class GraphicsRenderer(g: Graphics) {
+class GraphicsRenderer(g: Graphics, cWidth: Int, cHeight: Int) {
   private[this] val MARGIN                = 20
   private[this] var position              = Point(0, 0)
   private[this] var heading               = 0.0
   private[this] var turnAngle             = Pi / 2
   private[this] var (minPoint, maxPoint)  = (Point(0, 0), Point(0, 0))
   private[this] var travelLength          = 10.0
-  private[this] var stateStack            = Stack.empty[TurtleState]
+  private[this] var stateStack            = List.empty[TurtleState]
   private[this] var (turtleMovesCounter, turtleTurnsCounter, sequenceCounter) = (0, 0, 0)
   private[this] var strokeColor           = Color.black
 
   private case class TurtleState(position: Point, heading: Double, moveLength: Double, strokeColor: Color)
 
-  def render(definition: FractalDefinition, depth: Int) : RendererStats = {
+  def render(definition: FracDef, depth: Int) : RendererStats = {
     val start = new Date().getTime
     // Dry run to compute size
     init(Point(0, 0) -> 10.0, definition)
@@ -53,7 +52,7 @@ class GraphicsRenderer(g: Graphics) {
     RendererStats(turtleMovesCounter, turtleTurnsCounter, sequenceCounter, new Date().getTime - start)
   }
 
-  private def init(transformation: (Point, Double), definition: FractalDefinition): Unit = {
+  private def init(transformation: (Point, Double), definition: FracDef): Unit = {
     position            = transformation._1
     heading             = definition.startingPoint match {
       case StartingPoint.Left   => 0.0
@@ -63,15 +62,15 @@ class GraphicsRenderer(g: Graphics) {
     turnAngle           = definition.turnAngle
     minPoint            = Point(0, 0)
     maxPoint            = Point(0, 0)
-    stateStack          = Stack.empty[TurtleState]
+    stateStack          = List.empty[TurtleState]
     turtleMovesCounter  = 0
     turtleTurnsCounter  = 0
     sequenceCounter     = 0
   }
 
   /** Look what is the scaling and translation that must be applied to fill the drawing space */
-  private def computeTransformation = {
-    val (boundsWidth, boundsHeight) = (g.getClipBounds.width.toDouble - 2 * MARGIN, g.getClipBounds.height.toDouble - 2 * MARGIN)
+  private def computeTransformation: (Point, Double) = {
+    val (boundsWidth, boundsHeight) = (cWidth.toDouble - 2 * MARGIN, cHeight.toDouble - 2 * MARGIN)
     val (width, height) = (maxPoint.x - minPoint.x, maxPoint.y - minPoint.y)
     val (boundsRatio, ratio) = (boundsWidth / boundsHeight, width / height)
 
@@ -98,14 +97,14 @@ class GraphicsRenderer(g: Graphics) {
         move(draw = false, repetitionCount)
         turtleMovesCounter += repetitionCount
       case RuleReference('[', _) =>
-        stateStack = stateStack.push(TurtleState(position, heading, travelLength, strokeColor))
+        stateStack ::= TurtleState(position, heading, travelLength, strokeColor)
       case RuleReference(']', _) =>
-        val (state, newStack) = stateStack.pop2
-        heading = state.heading
-        travelLength = state.moveLength
-        position = state.position
-        strokeColor = state.strokeColor
-        stateStack = newStack
+        val (state :: newStack) = stateStack
+        heading       = state.heading
+        travelLength  = state.moveLength
+        position      = state.position
+        strokeColor   = state.strokeColor
+        stateStack    = newStack
       case RuleReference('>', _) =>
         travelLength *= scaleRatio
       case RuleReference('<', _) =>
